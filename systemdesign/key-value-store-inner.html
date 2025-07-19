@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Guide to Key-Value Store System Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Blue Tech -->
+    <!-- Application Structure Plan: The SPA is designed as a thematic, interactive dashboard with a sticky top navigation for easy access to key concepts (Functional Use Cases, Non-Functional Requirements, Consistent Hashing, Vector Clocks, Quorum Policies, Merkle Trees, Interview Questions, Gemini Explainer). This non-linear structure allows users to explore complex, interconnected topics modularly. Interactive visualizations (e.g., GET/PUT simulation, CAP theorem toggle, Consistent Hashing animation, Quorum calculator, Vector Clock conflict, Merkle Tree animation) make abstract concepts tangible. New sections for Hardware Heterogeneity and Scalability include simple visual representations. A dedicated section for common interview questions provides practical application. A Gemini-powered concept explainer is integrated to enhance understanding. -->
+    <!-- Visualization & Content Choices: 
+        - 1.1 GET/PUT Operations: Goal: Inform -> Viz: Interactive text simulation -> Interaction: User input -> Justification: Makes basic operations tangible -> Method: HTML/CSS/JS.
+        - 1.2 Availability and Data Consistency (CAP Theorem): Goal: Compare Trade-off -> Viz: Interactive HTML diagram -> Interaction: Toggles -> Justification: Clearly illustrates the core dilemma -> Method: HTML/CSS/JS.
+        - 1.3 Hardware Heterogeneity: Goal: Inform -> Viz: HTML/CSS icon grid -> Interaction: None (static visual) -> Justification: Provides a simple visual representation of diverse hardware -> Method: HTML/CSS.
+        - 2. Non-Functional Requirements (Scalability & Partition Tolerance): Goal: Inform -> Viz: HTML/CSS scalable server icons -> Interaction: None (static visual) -> Justification: Illustrates horizontal scaling visually. Partition Tolerance is linked to CAP Theorem -> Method: HTML/CSS.
+        - 3. Consistent Hashing: Goal: Explain Process -> Viz: Animated Canvas diagram -> Interaction: Buttons to add/remove nodes/keys -> Justification: Visualizing the dynamic process is key to understanding -> Method: Canvas API/JS.
+        - 4. Vector Clocks: Goal: Explain Process -> Viz: Side-by-side diagram with interactive button -> Interaction: Button to trigger conflict -> Justification: Simplifies a complex conflict detection mechanism -> Method: HTML/CSS/JS.
+        - 5. Quorum Policies: Goal: Explore Relationships -> Viz: Interactive sliders + Chart.js Doughnut chart -> Interaction: User adjusts N, W, R sliders -> Justification: Allows active exploration of consistency parameters -> Method: Chart.js/JS.
+        - 6. Merkle Trees: Goal: Explain Process -> Viz: Animated Canvas diagram -> Interaction: Click to "corrupt" data -> Justification: Shows efficiency in data synchronization -> Method: Canvas API/JS.
+        - Common Interview Questions: Goal: Prepare -> Viz: Text list -> Interaction: None (static list) -> Justification: Provides practical study material -> Method: HTML/CSS.
+        - Gemini Explainer: Goal: Clarify Concepts -> Viz: Text output -> Interaction: User input text, button click -> Justification: Provides on-demand simplified explanations -> Method: Gemini API/JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff; /* White background */
+            color: #3d3d3d;
+        }
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #2563eb; /* Blue for hover/active */
+            transform: translateY(-2px);
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .btn-primary {
+            background-color: #2563eb; /* Primary blue */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8; /* Darker blue on hover */
+            transform: scale(1.05);
+        }
+        .btn-secondary {
+            background-color: #e0f2fe; /* Light blue */
+            color: #2563eb; /* Primary blue text */
+        }
+        .btn-secondary:hover {
+            background-color: #bfdbfe; /* Slightly darker light blue */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .canvas-interactive {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+        }
+        .section-heading {
+            color: #111827;
+        }
+        .section-subheading {
+            color: #4b5563;
+        }
+        .code-block {
+            background-color: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            color: #1f2937;
+            white-space: pre-wrap;
+        }
+        .diagram-image {
+            display: block;
+            margin: 2rem auto;
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2563eb; /* Blue spinner */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: none; /* Hidden by default */
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Specific styles for the CAP theorem diagram nodes */
+        #cap-diagram .w-16.h-16.rounded-full.bg-blue-500 {
+            background-color: #2563eb; /* Primary blue node */
+        }
+        #cap-diagram .w-16.h-16.rounded-full.bg-blue-300 {
+            background-color: #60a5fa; /* Lighter blue node */
+        }
+        /* Consistency result colors */
+        .bg-green-100 { background-color: #dcfce7; } /* Light green for consistency */
+        .text-green-800 { color: #166534; } /* Dark green for consistency text */
+        .bg-yellow-100 { background-color: #fef9c3; } /* Light yellow for eventual consistency */
+        .text-yellow-800 { color: #854d09; } /* Dark yellow for eventual consistency text */
+        .bg-red-100 { background-color: #fee2e2; } /* Light red for conflict */
+        .text-red-800 { color: #991b1b; } /* Dark red for conflict text */
+        strong {
+            color: #2563eb; /* Blue for strong emphasis */
+        }
+        .server-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            background-color: #60a5fa;
+            color: white;
+            border-radius: 0.5rem;
+            font-size: 1.5rem;
+            margin: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .server-icon.small { width: 36px; height: 36px; font-size: 1rem;}
+        .server-icon.medium { width: 48px; height: 48px; font-size: 1.5rem;}
+        .server-icon.large { width: 60px; height: 60px; font-size: 2rem;}
+
+        .scalability-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .scalability-arrow::before {
+            content: '→';
+            font-size: 2rem;
+            color: #2563eb;
+            margin: 0 1rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-gray-800">Key-Value Store Design</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#functional-use-cases" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-600">Functional Use Cases</a>
+                        <a href="#non-functional-requirements" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-600">Non-Functional</a>
+                        <a href="#consistent-hashing" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-600">Consistent Hashing</a>
+                        <a href="#vector-clocks" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-600">Vector Clocks</a>
+                        <a href="#quorum-policies" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-600">Quorum Policies</a>
+                        <a href="#merkle-trees" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-600">Merkle Trees</a>
+                        <a href="#interview-questions" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-gray-600">Interview Q&A</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        
+        <section id="intro" class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold section-heading">An Interactive Guide to System Design</h2>
+            <p class="mt-4 max-w-3xl mx-auto text-lg section-subheading">Designing a scalable Key-Value store is a classic system design problem. This guide breaks down the core concepts into interactive modules to help you understand the fundamental principles and trade-offs involved.</p>
+        </section>
+
+        <div class="space-y-24">
+
+            <section id="functional-use-cases">
+                <div class="text-center mb-12">
+                    <h3 class="text-2xl md:text-3xl font-bold section-heading">1. Functional Use Cases</h3>
+                    <p class="mt-3 max-w-2xl mx-auto text-md section-subheading">A Key-Value Store provides a simple yet powerful interface. This section explores its core operations and fundamental considerations.</p>
+                </div>
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <div class="card p-6 md:p-8">
+                        <h4 class="font-semibold text-lg text-gray-800 mb-4">1.1 GET and PUT Operations</h4>
+                        <p class="text-sm text-gray-600 mt-2 mb-4">At its heart, a Key-Value Store provides a simple yet powerful interface for storing and retrieving data. The two most fundamental operations are:</p>
+                        <ul>
+                            <li><strong><code>PUT(key, value)</code>:</strong> This operation stores a `value` associated with a unique `key`. The system ensures that this key-value pair is durably saved. For example, in a system like Amazon DynamoDB, a hash function (e.g., MD5) is often applied to the `key` to determine its placement across the distributed system. This hash value, known as the partition key, helps in distributing data evenly and efficiently locating it.</li>
+                            <li><strong><code>GET(key)</code>:</strong> This operation retrieves the `value` associated with a given `key`. If the key does not exist, the operation typically returns null or an error. The efficiency of this operation is paramount for a high-performance key-value store.</li>
+                        </ul>
+                        <p class="text-sm text-gray-600">These two operations form the backbone of many distributed data systems, offering a highly efficient way to access data when the key is known.</p>
+                        <div class="mt-8">
+                            <h4 class="font-semibold text-lg text-gray-800">Interactive Store Simulation</h4>
+                            <p class="text-sm text-gray-600 mt-2">Use the controls to add data with `PUT` and retrieve it with `GET`.</p>
+                            <div class="mt-4 space-y-4">
+                                <div>
+                                    <label for="put-key" class="block text-sm font-medium text-gray-700">Key</label>
+                                    <input type="text" id="put-key" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g., user:123">
+                                </div>
+                                <div>
+                                    <label for="put-value" class="block text-sm font-medium text-gray-700">Value</label>
+                                    <input type="text" id="put-value" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g., { name: 'Alex' }">
+                                </div>
+                                <button id="put-btn" class="btn btn-primary w-full">PUT(key, value)</button>
+                            </div>
+                            <div class="mt-6">
+                                <label for="get-key" class="block text-sm font-medium text-gray-700">Key to Retrieve</label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="get-key" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="e.g., user:123">
+                                    <button id="get-btn" class="btn btn-secondary mt-1">GET(key)</button>
+                                </div>
+                            </div>
+                            <div class="code-block mt-4">
+                                <p class="font-semibold mb-2">Internal State:</p>
+                                <div id="store-state">Store is empty.</div>
+                                <p class="font-semibold mt-4 mb-2">Last Operation:</p>
+                                <div id="op-log">No operations yet.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 md:p-8">
+                        <h4 class="font-semibold text-lg text-gray-800 mb-4">1.2. Availability and Data Consistency (CAP Theorem)</h4>
+                        <p class="text-sm text-gray-600 mt-2 mb-4">In a distributed system, availability and consistency are often trade-offs, famously captured by the CAP Theorem. Since network partitions are a reality, the real choice is between consistency and availability. Interact with the diagram to see how this trade-off works.</p>
+                        <ul>
+                            <li><strong>Availability:</strong> Refers to the system's ability to remain operational and respond to requests even if some nodes fail. A highly available system minimizes downtime and ensures continuous service.</li>
+                            <li><strong>Consistency:</strong> Refers to the guarantee that every read operation returns the most recent write for a given key. Different levels of consistency exist, from strong consistency (all replicas are identical at all times) to eventual consistency (replicas will eventually converge).</li>
+                        </ul>
+                        <p class="text-sm text-gray-600">Achieving both strong consistency and high availability simultaneously in the face of network partitions is challenging. System designers must choose a consistency model that aligns with the application's requirements.</p>
+                        <div class="mt-8">
+                            <div class="flex justify-center space-x-4 mb-6">
+                                <button id="cap-c-btn" class="btn btn-primary">Prioritize Consistency (CP)</button>
+                                <button id="cap-a-btn" class="btn btn-secondary">Prioritize Availability (AP)</button>
+                            </div>
+                            <div class="grid md:grid-cols-1 gap-8 items-start">
+                                <div id="cap-diagram" class="border p-4 rounded-lg bg-gray-50 relative h-64">
+                                    <div class="absolute top-1/2 left-1/4 -translate-y-1/2 text-center">
+                                        <div class="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">N1</div>
+                                        <div class="text-sm">Master</div>
+                                    </div>
+                                    <div class="absolute top-0 left-1/2 w-1 bg-red-500 h-full -translate-x-1/2 flex items-center justify-center">
+                                        <span class="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold transform -rotate-90">PARTITION</span>
+                                    </div>
+                                    <div class="absolute top-1/2 right-1/4 -translate-y-1/2 text-center">
+                                        <div class="w-16 h-16 rounded-full bg-blue-300 flex items-center justify-center text-white font-bold" id="cap-n2">N2</div>
+                                        <div class="text-sm">Replica</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-lg text-gray-800">Scenario Explanation</h4>
+                                    <p id="cap-explanation" class="mt-2 text-gray-600"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 md:p-8 mt-8 max-w-4xl mx-auto">
+                    <h4 class="font-semibold text-lg text-gray-800 mb-4">1.3. Hardware Heterogeneity</h4>
+                    <p class="text-sm text-gray-600 mt-2 mb-4">Modern distributed systems often run on a mix of hardware, ranging from older, less powerful machines to newer, high-performance servers. This hardware heterogeneity needs to be accounted for in the system design.</p>
+                    <ul>
+                        <li><strong>Load Distribution:</strong> The system should intelligently distribute load, assigning more workload to more capable machines and less to weaker ones.</li>
+                        <li><strong>Data Placement:</strong> Data placement strategies might consider node capacities, ensuring that critical or high-traffic data is not disproportionately placed on slower nodes.</li>
+                        <li><strong>Failure Handling:</strong> The system should gracefully handle failures of any node, regardless of its hardware specifications, without impacting overall service.</li>
+                    </ul>
+                    <div class="flex justify-center items-end mt-6">
+                        <div class="server-icon small">S</div>
+                        <div class="server-icon medium">M</div>
+                        <div class="server-icon large">L</div>
+                        <div class="server-icon medium">M</div>
+                        <div class="server-icon small">S</div>
+                    </div>
+                    <p class="text-center text-sm text-gray-600 mt-2">Visual: Different sized servers representing hardware heterogeneity.</p>
+                </div>
+            </section>
+
+            <section id="non-functional-requirements">
+                <div class="text-center mb-12">
+                    <h3 class="text-2xl md:text-3xl font-bold section-heading">2. Non-Functional Requirements: Scalability and Partition Tolerance</h3>
+                    <p class="mt-3 max-w-2xl mx-auto text-md section-subheading">Non-functional requirements dictate the quality attributes of the system, focusing on how well it performs and handles various conditions.</p>
+                </div>
+                <div class="card p-6 md:p-8 max-w-4xl mx-auto">
+                    <p class="text-sm text-gray-600 mt-2 mb-4">Non-functional requirements dictate the quality attributes of the system.</p>
+                    <ul>
+                        <li><strong>Scalability:</strong> The ability of the system to handle an increasing amount of workload by adding more resources (e.g., adding more servers). A key-value store should be horizontally scalable, meaning it can scale out by adding more commodity machines rather than scaling up by using more powerful, expensive servers.</li>
+                        <li><strong>Partition Tolerance:</strong> The ability of a distributed system to continue operating despite network partitions. A network partition occurs when communication between nodes is disrupted, effectively splitting the system into isolated sub-systems. In such scenarios, the system must decide whether to prioritize consistency or availability. (Refer to the <a href="#cap-theorem" class="text-blue-600 hover:underline">CAP Theorem section</a> for more details on this trade-off).</li>
+                    </ul>
+                    <div class="flex justify-center items-center mt-6">
+                        <div class="flex">
+                            <div class="server-icon small">S</div>
+                        </div>
+                        <div class="scalability-arrow"></div>
+                        <div class="flex">
+                            <div class="server-icon small">S</div>
+                            <div class="server-icon small">S</div>
+                            <div class="server-icon small">S</div>
+                        </div>
+                        <div class="scalability-arrow"></div>
+                        <div class="flex">
+                            <div class="server-icon small">S</div>
+                            <div class="server-icon small">S</div>
+                            <div class="server-icon small">S</div>
+                            <div class="server-icon small">S</div>
+                            <div class="server-icon small">S</div>
+                        </div>
+                    </div>
+                    <p class="text-center text-sm text-gray-600 mt-2">Visual: Horizontal scalability - adding more servers to handle increased load.</p>
+                </div>
+            </section>
+
+            <section id="consistent-hashing">
+                <div class="text-center mb-12">
+                    <h3 class="text-2xl md:text-3xl font-bold section-heading">3. GET and PUT Implementation with Consistent Hashing</h3>
+                    <p class="mt-3 max-w-2xl mx-auto text-md section-subheading">To efficiently distribute data and handle node failures, **Consistent Hashing** is a widely adopted technique. Interact with the hash ring below to see how it works.</p>
+                </div>
+                <div class="card p-6 md:p-8">
+                     <div class="chart-container mx-auto">
+                        <canvas id="hashing-ring" class="canvas-interactive"></canvas>
+                     </div>
+                     <div class="mt-6 flex flex-wrap justify-center gap-4">
+                        <button id="add-node-btn" class="btn btn-primary">Add Node</button>
+                        <button id="remove-node-btn" class="btn btn-primary">Remove Node</button>
+                        <button id="add-key-btn" class="btn btn-secondary">Add Key</button>
+                     </div>
+                     <p id="hashing-log" class="text-center mt-4 text-sm text-gray-600">Ring Initialized. Click buttons to see it in action.</p>
+                </div>
+            </section>
+
+            <section id="vector-clocks">
+                <div class="text-center mb-12">
+                    <h3 class="text-2xl md:text-3xl font-bold section-heading">4. Vector Clocks for Causal Sequence/Order of Data</h3>
+                    <p class="mt-3 max-w-2xl mx-auto text-md section-subheading">In eventually consistent systems, conflicts can arise when multiple clients write to the same key concurrently. Vector Clocks are used to track the causal history of data and help resolve these conflicts. Click the button to simulate a conflict.</p>
+                </div>
+                <div class="card p-6 md:p-8 max-w-4xl mx-auto">
+                    <ul>
+                        <li><strong>Operation:</strong> A vector clock is a list of (node ID, counter) pairs. Each time a node updates a piece of data, it increments its own counter in the vector clock. When data is replicated, the vector clock is sent along with the data.</li>
+                        <li><strong>Conflict Detection:</strong> When two versions of data for the same key arrive at a node, their vector clocks are compared.
+                            <ul>
+                                <li>If one vector clock "dominates" the other (i.e., all counters in one clock are greater than or equal to the corresponding counters in the other, and at least one counter is strictly greater), then one version causally precedes the other, and the older version can be discarded.</li>
+                                <li>If neither vector clock dominates the other, it indicates a concurrent update, and a conflict exists. The system then needs a conflict resolution strategy (e.g., "last write wins" based on timestamp, or application-specific logic).</li>
+                            </ul>
+                        </li>
+                        <li><strong>Causal Ordering:</strong> Vector clocks provide a way to establish a partial ordering of events, ensuring that operations that are causally related are processed in the correct sequence.</li>
+                    </ul>
+                    <div class="mt-6 space-y-4">
+                         <div class="flex justify-around items-start">
+                            <div class="text-center">
+                                <p class="font-medium">Client A's Write</p>
+                                <div id="vc-a" class="code-block mt-2"></div>
+                            </div>
+                             <div class="text-center">
+                                <p class="font-medium">Client B's Write</p>
+                                <div id="vc-b" class="code-block mt-2"></div>
+                            </div>
+                        </div>
+                        <button id="vc-btn" class="btn btn-primary w-full">Simulate Concurrent Write</button>
+                        <div id="vc-result" class="mt-4 text-center p-4 rounded-lg bg-gray-100">
+                            Result will be shown here.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="quorum-policies">
+                <div class="text-center mb-12">
+                    <h3 class="text-2xl md:text-3xl font-bold section-heading">5. Partition Tolerance and Quorum Policies</h3>
+                    <p class="mt-3 max-w-2xl mx-auto text-md section-subheading">In scenarios involving network partitions, **Quorum Policies** are crucial for maintaining consistency and electing new leaders. Adjust the sliders to understand their impact.</p>
+                </div>
+                <div class="card p-6 md:p-8 max-w-4xl mx-auto">
+                    <ul>
+                        <li><strong>Master Election:</strong> When a network partition occurs and the master node becomes isolated or fails, a new master needs to be elected from the remaining available nodes. A quorum mechanism ensures that a sufficient number of nodes agree on the new master. For instance, in a system with 5 replicas, a quorum might require 3 nodes to agree to elect a new master. This prevents "split-brain" scenarios where multiple nodes believe they are the master.</li>
+                        <li><strong>Consistency and Replication:</strong> Quorum policies directly influence the consistency guarantees of the system. They define the minimum number of replicas that must acknowledge a write operation (write quorum, `W`) and the minimum number of replicas that must be read from (read quorum, `R`) to consider an operation successful.
+                            <ul>
+                                <li><strong>Strong Consistency:</strong> To achieve strong consistency, the sum of read quorum and write quorum must be greater than the total number of replicas (`R + W > N`). For example, if `N=3`, then `R=2, W=2` ensures strong consistency. This means any read will always see the latest written data.</li>
+                                <li><strong>Eventual Consistency:</strong> If `R + W <= N`, the system leans towards eventual consistency, prioritizing availability over immediate consistency. For example, `R=1, W=1` offers high availability but weaker consistency.</li>
+                            </ul>
+                        </li>
+                        <li><strong>Example Quorum Policies:</strong>
+                            <ul>
+                                <li><strong><code>W=N, R=1</code>:</strong> All replicas must acknowledge a write. Very strong consistency for writes, but low write availability. Reads are fast.</li>
+                                <li><strong><code>W=1, R=N</code>:</strong> Only one replica needs to acknowledge a write. Writes are fast and highly available, but reads are slow and need to reconcile potential conflicts.</li>
+                                <li><strong><code>W=N/2 + 1, R=N/2 + 1</code>:</strong> A common configuration for strong consistency, balancing read and write availability.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <h4 class="font-semibold text-lg text-center text-gray-800 mt-8">Quorum Consistency Calculator</h4>
+                    <p class="text-center text-sm text-gray-600 mt-2">Adjust N, W, and R to see how they affect consistency. Strong consistency is achieved when `R + W > N`.</p>
+                    <div class="chart-container mx-auto h-48 md:h-64">
+                        <canvas id="quorum-chart"></canvas>
+                    </div>
+                    <div class="space-y-4 mt-4">
+                        <div>
+                            <label for="n-slider" class="flex justify-between text-sm font-medium text-gray-700">Replicas (N): <span id="n-value">3</span></label>
+                            <input id="n-slider" type="range" min="3" max="10" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                         <div>
+                            <label for="w-slider" class="flex justify-between text-sm font-medium text-gray-700">Write Quorum (W): <span id="w-value">2</span></label>
+                            <input id="w-slider" type="range" min="1" max="3" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                         <div>
+                            <label for="r-slider" class="flex justify-between text-sm font-medium text-gray-700">Read Quorum (R): <span id="r-value">2</span></label>
+                            <input id="r-slider" type="range" min="1" max="3" value="2" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                    <div id="quorum-result" class="mt-4 text-center font-bold text-lg"></div>
+                </div>
+            </section>
+            
+            <section id="merkle-trees">
+                <div class="text-center mb-12">
+                    <h3 class="text-2xl md:text-3xl font-bold section-heading">6. Fault Tolerance and Durability with Merkle Trees</h3>
+                    <p class="mt-3 max-w-2xl mx-auto text-md section-subheading">To ensure data hasn't been corrupted and to efficiently synchronize replicas, systems use Merkle Trees. By comparing root hashes, nodes can quickly tell if their data is identical without transferring all of it. Click a data block on the left tree to "corrupt" it and see how the hashes change.</p>
+                </div>
+                <div class="card p-6 md:p-8 max-w-4xl mx-auto">
+                    <ul>
+                        <li><strong>How they work:</strong> A Merkle tree is a tree where every leaf node is labeled with the hash of a data block, and every non-leaf node is labeled with the hash of the hashes of its child nodes. The root of the tree is the Merkle root, which is a single hash representing the entire dataset.</li>
+                        <li><strong>Data Integrity:</strong> If even a single bit of data changes in a block, its hash will change, and this change will propagate up the tree, altering the Merkle root. This makes it easy to detect any data corruption.</li>
+                        <li><strong>Efficient Synchronization (Anti-Entropy):</strong> Merkle trees are particularly useful for "anti-entropy" protocols, which are mechanisms to ensure that all replicas eventually converge to the same state.
+                            <ul>
+                                <li>Instead of transferring all data between nodes to check for consistency, nodes can compare their Merkle roots.</li>
+                                <li>If the roots differ, they can then compare the hashes of their child nodes, progressively drilling down the tree to identify the specific sub-tree (and thus the specific data blocks) that are out of sync.</li>
+                                <li>This significantly reduces the amount of data transferred across the network, especially in scenarios with <strong>high entropy</strong> (where many parts of the data might be inconsistent). Only the divergent parts of the tree need to be exchanged and reconciled, ensuring efficient and targeted data synchronization.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                     <div class="grid md:grid-cols-2 gap-8 items-center mt-8">
+                        <div>
+                             <h4 class="font-semibold text-lg text-center text-gray-800">Replica 1 (Click to Corrupt)</h4>
+                             <canvas id="merkle-tree-1" class="canvas-interactive" width="500" height="350"></canvas>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg text-center text-gray-800">Replica 2 (Original)</h4>
+                            <canvas id="merkle-tree-2" class="canvas-interactive" width="500" height="350"></canvas>
+                        </div>
+                     </div>
+                     <div id="merkle-result" class="mt-6 text-center font-semibold text-lg p-4 rounded-lg"></div>
+                </div>
+            </section>
+
+            <section id="interview-questions">
+                <div class="text-center mb-12">
+                    <h3 class="text-2xl md:text-3xl font-bold section-heading">Common Interview Questions</h3>
+                    <p class="mt-3 max-w-2xl mx-auto text-md section-subheading">Here are some typical system design interview questions related to Key-Value Stores, designed to test your understanding of the concepts discussed.</p>
+                </div>
+                <div class="card p-6 md:p-8 max-w-4xl mx-auto">
+                    <ul class="list-disc pl-5 space-y-3 text-gray-700">
+                        <li>Design a highly available and scalable key-value store like DynamoDB or Cassandra.</li>
+                        <li>How would you handle data consistency in a globally distributed key-value store? Discuss different consistency models.</li>
+                        <li>Explain Consistent Hashing and its benefits in a distributed key-value store. How does it handle node failures and additions?</li>
+                        <li>What are the trade-offs between strong consistency and eventual consistency in a key-value store? Provide examples of use cases for each.</li>
+                        <li>How do Vector Clocks help in conflict resolution in an eventually consistent key-value store?</li>
+                        <li>Describe how Merkle Trees are used for data synchronization and integrity checks in distributed storage systems.</li>
+                        <li>How would you ensure durability and fault tolerance for data in your key-value store?</li>
+                        <li>Discuss the impact of network partitions on a key-value store and how quorum policies can mitigate these issues.</li>
+                        <li>What are the challenges of hardware heterogeneity in a large-scale distributed key-value store, and how would you address them?</li>
+                        <li>How would you design the PUT and GET APIs to be idempotent?</li>
+                    </ul>
+                </div>
+            </section>
+
+        </div>
+    </main>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Navigation scroll highlighting
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+            window.onscroll = () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 80) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.href.includes(current)) {
+                        link.classList.add('active');
+                    }
+                });
+            };
+
+            // Section 1.1: Core Ops
+            const store = {};
+            const putKey = document.getElementById('put-key');
+            const putValue = document.getElementById('put-value');
+            const putBtn = document.getElementById('put-btn');
+            const getKey = document.getElementById('get-key');
+            const getBtn = document.getElementById('get-btn');
+            const storeState = document.getElementById('store-state');
+            const opLog = document.getElementById('op-log');
+
+            putBtn.addEventListener('click', () => {
+                if (putKey.value && putValue.value) {
+                    store[putKey.value] = putValue.value;
+                    opLog.textContent = `PUT('${putKey.value}', '${putValue.value}')`;
+                    storeState.textContent = JSON.stringify(store, null, 2);
+                    putKey.value = '';
+                    putValue.value = '';
+                }
+            });
+
+            getBtn.addEventListener('click', () => {
+                if (getKey.value) {
+                    const val = store[getKey.value] || 'null';
+                    opLog.innerHTML = `GET('${getKey.value}') &rarr; returns '${val}'`;
+                }
+            });
+
+            // Section 1.2: CAP Theorem
+            const capCBtn = document.getElementById('cap-c-btn');
+            const capABtn = document.getElementById('cap-a-btn');
+            const capExplanation = document.getElementById('cap-explanation');
+            const capN2 = document.getElementById('cap-n2');
+            
+            const setCapState = (isConsistency) => {
+                if (isConsistency) {
+                    capCBtn.classList.replace('btn-secondary', 'btn-primary');
+                    capABtn.classList.replace('btn-primary', 'btn-secondary');
+                    capN2.classList.add('opacity-50');
+                    capExplanation.innerHTML = `<strong>CP System:</strong> To maintain consistency, the partitioned replica (N2) is taken offline. It stops serving requests to prevent returning stale data. The system remains consistent but loses some availability.`;
+                } else {
+                    capCBtn.classList.replace('btn-primary', 'btn-secondary');
+                    capABtn.classList.replace('btn-secondary', 'btn-primary');
+                    capN2.classList.remove('opacity-50');
+                    capExplanation.innerHTML = `<strong>AP System:</strong> To maintain availability, the partitioned replica (N2) continues to serve requests. It might return stale data, but the system remains fully available. Consistency is sacrificed and will be reconciled later.`;
+                }
+            };
+            capCBtn.addEventListener('click', () => setCapState(true));
+            capABtn.addEventListener('click', () => setCapState(false));
+            setCapState(true);
+
+            // Section 3: Consistent Hashing
+            const hashingCanvas = document.getElementById('hashing-ring');
+            const hashingLog = document.getElementById('hashing-log');
+            const ringCtx = hashingCanvas.getContext('2d');
+            let nodes = [];
+            let keys = [];
+            let animationFrameId;
+
+            const ringRadius = Math.min(hashingCanvas.width, hashingCanvas.height) * 0.35;
+            const centerX = hashingCanvas.width / 2;
+            const centerY = hashingCanvas.height / 2;
+
+            const hashStringToAngle = (str) => {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = (hash << 5) - hash + str.charCodeAt(i);
+                    hash |= 0; 
+                }
+                return ((hash & 0x7FFFFFFF) / 0x7FFFFFFF) * 2 * Math.PI;
+            };
+
+            const drawRing = () => {
+                ringCtx.clearRect(0, 0, hashingCanvas.width, hashingCanvas.height);
+                ringCtx.strokeStyle = '#9ca3af';
+                ringCtx.lineWidth = 4;
+                ringCtx.beginPath();
+                ringCtx.arc(centerX, centerY, ringRadius, 0, 2 * Math.PI);
+                ringCtx.stroke();
+                
+                nodes.forEach(node => {
+                    const x = centerX + ringRadius * Math.cos(node.angle);
+                    const y = centerY + ringRadius * Math.sin(node.angle);
+                    ringCtx.fillStyle = '#2563eb'; /* Primary blue */
+                    ringCtx.beginPath();
+                    ringCtx.arc(x, y, 10, 0, 2 * Math.PI);
+                    ringCtx.fill();
+                    ringCtx.fillStyle = '#1d4ed8'; /* Darker blue */
+                    ringCtx.font = '12px Inter';
+                    ringCtx.fillText(node.id, x + 15, y + 5);
+                });
+                
+                keys.forEach(key => {
+                    const x = centerX + ringRadius * Math.cos(key.angle);
+                    const y = centerY + ringRadius * Math.sin(key.angle);
+                    ringCtx.fillStyle = '#dc2626'; /* Red for keys */
+                    ringCtx.beginPath();
+                    ringCtx.arc(x, y, 6, 0, 2 * Math.PI);
+                    ringCtx.fill();
+                    
+                    let responsibleNode = findResponsibleNode(key.angle);
+                    if (responsibleNode) {
+                        ringCtx.beginPath();
+                        ringCtx.moveTo(x,y);
+                        ringCtx.lineTo(centerX + ringRadius * Math.cos(responsibleNode.angle), centerY + ringRadius * Math.sin(responsibleNode.angle));
+                        ringCtx.strokeStyle = '#ef4444'; /* Lighter red for lines */
+                        ringCtx.lineWidth = 1;
+                        ringCtx.stroke();
+                    }
+                });
+            };
+            
+            const findResponsibleNode = (keyAngle) => {
+                if (nodes.length === 0) return null;
+                let responsibleNode = null;
+                let minAngleDiff = 2 * Math.PI;
+                nodes.forEach(node => {
+                    let diff = node.angle - keyAngle;
+                    if (diff < 0) diff += 2 * Math.PI;
+                    if (diff < minAngleDiff) {
+                        minAngleDiff = diff;
+                        responsibleNode = node;
+                    }
+                });
+                return responsibleNode;
+            }
+
+            document.getElementById('add-node-btn').addEventListener('click', () => {
+                const nodeId = `N${nodes.length + 1}`;
+                nodes.push({ id: nodeId, angle: hashStringToAngle(nodeId) });
+                nodes.sort((a,b) => a.angle - b.angle);
+                hashingLog.textContent = `Added Node ${nodeId}. Keys may be re-assigned.`;
+                drawRing();
+            });
+            document.getElementById('remove-node-btn').addEventListener('click', () => {
+                if (nodes.length > 0) {
+                    const removed = nodes.pop();
+                    hashingLog.textContent = `Removed Node ${removed.id}. Its keys are now handled by the next node.`;
+                    drawRing();
+                } else {
+                    hashingLog.textContent = `No nodes to remove.`;
+                }
+            });
+            document.getElementById('add-key-btn').addEventListener('click', () => {
+                const keyId = `key-${Math.floor(Math.random() * 1000)}`;
+                const keyAngle = hashStringToAngle(keyId);
+                keys.push({ id: keyId, angle: keyAngle });
+                const responsible = findResponsibleNode(keyAngle);
+                hashingLog.textContent = `Added ${keyId}. It is handled by ${responsible ? responsible.id : 'no node'}.`;
+                drawRing();
+            });
+            
+            const resizeHashingCanvas = () => {
+                const container = hashingCanvas.parentElement;
+                hashingCanvas.width = container.clientWidth;
+                hashingCanvas.height = container.clientHeight;
+                drawRing();
+            };
+            window.addEventListener('resize', resizeHashingCanvas);
+            resizeHashingCanvas();
+            document.getElementById('add-node-btn').click();
+            document.getElementById('add-node-btn').click();
+            document.getElementById('add-node-btn').click();
+
+            // Section 5: Quorum
+            const nSlider = document.getElementById('n-slider');
+            const wSlider = document.getElementById('w-slider');
+            const rSlider = document.getElementById('r-slider');
+            const nValue = document.getElementById('n-value');
+            const wValue = document.getElementById('w-value');
+            const rValue = document.getElementById('r-value');
+            const quorumResult = document.getElementById('quorum-result');
+            const quorumCtx = document.getElementById('quorum-chart').getContext('2d');
+            let quorumChart;
+
+            const updateQuorum = () => {
+                const n = parseInt(nSlider.value);
+                wSlider.max = n;
+                rSlider.max = n;
+                const w = parseInt(wSlider.value);
+                const r = parseInt(rSlider.value);
+                
+                nValue.textContent = n;
+                wValue.textContent = w;
+                rValue.textContent = r;
+
+                if (r + w > n) {
+                    quorumResult.textContent = `R+W (${r+w}) > N (${n}) = Strong Consistency`;
+                    quorumResult.className = 'mt-4 text-center font-bold text-lg p-2 rounded-lg bg-green-100 text-green-800';
+                } else {
+                    quorumResult.textContent = `R+W (${r+w}) <= N (${n}) = Eventual Consistency`;
+                    quorumResult.className = 'mt-4 text-center font-bold text-lg p-2 rounded-lg bg-yellow-100 text-yellow-800';
+                }
+
+                if (quorumChart) quorumChart.destroy();
+                quorumChart = new Chart(quorumCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Read Quorum (R)', 'Write Quorum (W)', 'Other Replicas'],
+                        datasets: [{
+                            data: [r, w, Math.max(0, n - (r+w))],
+                            backgroundColor: ['#60a5fa', '#22c55e', '#e5e7eb'], /* Blue, Green, Grey */
+                            borderColor: '#ffffff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            };
+            [nSlider, wSlider, rSlider].forEach(s => s.addEventListener('input', updateQuorum));
+            updateQuorum();
+
+            // Section 4: Vector Clocks
+            const vcBtn = document.getElementById('vc-btn');
+            const vcA = document.getElementById('vc-a');
+            const vcB = document.getElementById('vc-b');
+            const vcResult = document.getElementById('vc-result');
+            let baseClock = {n1:0, n2:0, n3:0};
+
+            const displayClock = (el, val, clock) => {
+                el.innerHTML = `value: "${val}"<br>clock: {n1:${clock.n1}, n2:${clock.n2}, n3:${clock.n3}}`;
+            }
+
+            vcBtn.addEventListener('click', () => {
+                let clockA = {...baseClock};
+                clockA.n1++;
+                const valA = `hello_${Math.floor(Math.random()*10)}`;
+                
+                let clockB = {...baseClock};
+                clockB.n2++;
+                const valB = `world_${Math.floor(Math.random()*10)}`;
+
+                displayClock(vcA, valA, clockA);
+                displayClock(vcB, valB, clockB);
+                
+                baseClock.n1 = clockA.n1;
+                baseClock.n2 = clockB.n2;
+
+                vcResult.innerHTML = `<strong>Conflict Detected!</strong><br>Neither vector clock dominates the other. The system must ask the application to resolve this conflict (e.g., merge data, or choose one based on a timestamp).`;
+                vcResult.className = 'mt-4 text-center p-4 rounded-lg bg-red-100 text-red-800'
+            });
+            displayClock(vcA, 'initial', baseClock);
+            displayClock(vcB, 'initial', baseClock);
+
+
+            // Section 6: Merkle Trees
+            const merkleCanvas1 = document.getElementById('merkle-tree-1');
+            const merkleCanvas2 = document.getElementById('merkle-tree-2');
+            const merkleResult = document.getElementById('merkle-result');
+            const mCtx1 = merkleCanvas1.getContext('2d');
+            const mCtx2 = merkleCanvas2.getContext('2d');
+            const dataBlocks = ['A', 'B', 'C', 'D'];
+            let corruptedBlock = -1; // -1 means no block is corrupted
+            const blockPositions = []; // To store clickable areas
+
+            const simpleHash = (str) => {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) hash += str.charCodeAt(i);
+                return `0x${(hash % 4096).toString(16).padStart(3, '0')}`;
+            };
+
+            const drawMerkle = (ctx, isCorruptedReplica) => {
+                ctx.clearRect(0,0,merkleCanvas1.width, merkleCanvas1.height);
+                ctx.textAlign = 'center';
+                ctx.font = '14px Inter';
+                
+                const leafHashes = dataBlocks.map((d, i) => {
+                    if (isCorruptedReplica && i === corruptedBlock) {
+                        return simpleHash(d + '_corr');
+                    }
+                    return simpleHash(d);
+                });
+
+                const parentHash1 = simpleHash(leafHashes[0] + leafHashes[1]);
+                const parentHash2 = simpleHash(leafHashes[2] + leafHashes[3]);
+                const rootHash = simpleHash(parentHash1 + parentHash2);
+                
+                // Draw data blocks (bottom level)
+                dataBlocks.forEach((d, i) => {
+                    const x = (merkleCanvas1.width / 8) * (2 * i + 1);
+                    const y = 300;
+                    ctx.fillStyle = (isCorruptedReplica && i === corruptedBlock) ? '#ef4444' : '#2563eb'; /* Red if corrupted, else blue */
+                    ctx.fillRect(x - 40, y - 20, 80, 40);
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(isCorruptedReplica && i === corruptedBlock ? d + "'" : d, x, y + 5);
+                    if (isCorruptedReplica) { // Only store positions for the clickable replica
+                        blockPositions[i] = {x: x-40, y: y-20, w: 80, h: 40};
+                    }
+                });
+                
+                // Draw leaf hashes (level above data blocks)
+                leafHashes.forEach((h, i) => {
+                     const x = (merkleCanvas1.width / 8) * (2 * i + 1);
+                     const y = 240;
+                     ctx.fillStyle = '#4b5563';
+                     ctx.fillText(h, x, y);
+                     ctx.strokeStyle = '#9ca3af';
+                     ctx.lineWidth = 1;
+                     ctx.beginPath(); ctx.moveTo(x,y+5); ctx.lineTo(x, y+30); ctx.stroke();
+                });
+
+                // Draw parent hashes (middle level)
+                ctx.fillStyle = '#4b5563';
+                ctx.fillText(parentHash1, merkleCanvas1.width / 4, 160);
+                ctx.beginPath(); ctx.moveTo(merkleCanvas1.width/4, 165); ctx.lineTo(merkleCanvas1.width/4, 190); ctx.stroke();
+                ctx.moveTo(merkleCanvas1.width/8 * 1, 235); ctx.lineTo(merkleCanvas1.width/8 * 3, 235); ctx.stroke();
+                ctx.moveTo(merkleCanvas1.width/8 * 1, 235); ctx.lineTo(merkleCanvas1.width/4, 190); ctx.stroke();
+                ctx.moveTo(merkleCanvas1.width/8 * 3, 235); ctx.lineTo(merkleCanvas1.width/4, 190); ctx.stroke();
+
+                ctx.fillText(parentHash2, merkleCanvas1.width * 3 / 4, 160);
+                ctx.beginPath(); ctx.moveTo(merkleCanvas1.width*3/4, 165); ctx.lineTo(merkleCanvas1.width*3/4, 190); ctx.stroke();
+                ctx.moveTo(merkleCanvas1.width/8 * 5, 235); ctx.lineTo(merkleCanvas1.width/8 * 7, 235); ctx.stroke();
+                ctx.moveTo(merkleCanvas1.width/8 * 5, 235); ctx.lineTo(merkleCanvas1.width*3/4, 190); ctx.stroke();
+                ctx.moveTo(merkleCanvas1.width/8 * 7, 235); ctx.lineTo(merkleCanvas1.width*3/4, 190); ctx.stroke();
+
+                // Draw root hash (top level)
+                ctx.fillStyle = '#15803d'; /* Green for root */
+                ctx.font = 'bold 16px Inter';
+                ctx.fillText(rootHash, merkleCanvas1.width / 2, 80);
+                ctx.font = '14px Inter';
+                ctx.beginPath();
+                ctx.moveTo(merkleCanvas1.width/4, 155); ctx.lineTo(merkleCanvas1.width/2, 100); ctx.stroke();
+                ctx.moveTo(merkleCanvas1.width*3/4, 155); ctx.lineTo(merkleCanvas1.width/2, 100); ctx.stroke();
+
+                return rootHash;
+            };
+            
+            const compareMerkleRoots = () => {
+                const root1 = drawMerkle(mCtx1, true); // Corrupted replica
+                const root2 = drawMerkle(mCtx2, false); // Original replica
+
+                if (root1 === root2) {
+                     merkleResult.textContent = `Root Hashes Match (${root1}). Data is consistent.`;
+                     merkleResult.className = 'mt-6 text-center font-semibold text-lg p-4 rounded-lg bg-green-100 text-green-800';
+                } else {
+                     merkleResult.textContent = `Root Hashes Differ! Replica 1: ${root1}, Replica 2: ${root2}. Data is inconsistent.`;
+                     merkleResult.className = 'mt-6 text-center font-semibold text-lg p-4 rounded-lg bg-red-100 text-red-800';
+                }
+            };
+            
+            merkleCanvas1.addEventListener('click', (e) => {
+                const rect = merkleCanvas1.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                blockPositions.forEach((pos, i) => {
+                    if (x > pos.x && x < pos.x + pos.w && y > pos.y && y < pos.y + pos.h) {
+                        corruptedBlock = i;
+                        compareMerkleRoots();
+                    }
+                });
+            });
+            compareMerkleRoots(); // Initial draw and comparison
+        });
+    </script>
+
+</body>
+</html>
